@@ -1,0 +1,91 @@
+#!/bin/bash
+
+KBINDIR=~/kbin
+TARGET=$1
+shift 1
+OPTS=$*
+
+perr() { # message
+  echo "Error: "$1
+  exit 0
+}
+
+check_gitdir() { # dir
+  test -d $1/.git
+}
+
+check_gitdir $PWD || perr "Failed to find git repository in $PWD"
+
+if [ -z "$ARCH" ]; then
+  ARCH=`uname -m`
+fi
+
+SRCDIR=$PWD
+BINDIR=$KBINDIR/`basename $PWD`.$ARCH
+
+[ -d $BINDIR ] || mkdir -p $BINDIR || perr "Failed to make kbindir"
+
+#KREL=`make kernelrelease`
+
+NR_CPUS=`grep processor /proc/cpuinfo | wc -l`
+JOBS=`expr $NR_CPUS \* 2`
+SUDO=
+
+do_make() { # target options
+  echo make O=$BINDIR -j$JOBS $*
+  $SUDO make O=$BINDIR -j$JOBS $*
+}
+
+sudo_make() { #target options
+  SUDO=sudo 
+  do_make $*
+}
+
+do_make_log() { # target options
+  do_make $* 2>&1 | tee make.log
+  grep '^[a-zA-Z/].*' make.log > error.log
+}
+
+copy_config() { #file
+  if [ "$1" -a -f "$1" ]; then
+    cp -f $1 $BINDIR/.config
+  else
+    [ -f /boot/config-`uname -r` ] && \
+      cp -f /boot/config-`uname -r` $BINDIR/.config && return
+    [ -f /proc/config.gz ] && \
+      zcat /proc/config.gz > $BINDIR/.config && return
+    [ -f /proc/config ] && \
+      cat /proc/config > $BINDIR/.config && return
+  fi
+}
+
+cscope_run() {
+  if [ ! -f $BINDIR/cscope.out ]; then
+    JOBS=1
+    do_make cscope
+  fi
+  cscope -d -f $BINDIR/cscope.out
+}
+
+case $TARGET in
+ copyconfig)
+   copy_config $OPTS
+   ls -a $BINDIR
+   do_make oldconfig
+ ;;
+ alllog)
+   do_make_log all $OPTS
+ ;;
+ kinstall)
+   JOBS=1
+   sudo_make modules_install install 
+ ;;
+ cscope)
+   cscope_run
+ ;;
+ help)
+ ;;
+ *)
+   do_make $TARGET
+ ;;
+esac
