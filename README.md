@@ -29,3 +29,20 @@ Install kernel and modules as super user
 * cscope
 Not only build cscope.out but also run cscope afterwards.
 
+
+kuninstall
+----------
+
+### Syntax
+     kuninstall [target-kernel-version(s)]
+
+kuninstall helps you to uninstall unneeded kernel and
+modules. This removes System.map, initrd.img and vmlinuz
+under /boot and removes modules if exist. Afterwards,
+update grub entry (currently debian/ubuntu supported)
+
+If you give no arguments, it just prints what the kernel
+versions are installed.
+Note that the kuninstall doesn't recognize the distro
+kernel. So you may need to take care of it.
+

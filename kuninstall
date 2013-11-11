@@ -1,0 +1,24 @@
+#!/bin/bash
+
+if [ $# -lt 1 ]; then
+  # List the installed kernel
+  ls /boot/vmlinuz-* | cut -d- -f2-
+  exit 0
+fi
+
+uninstall_kernel() { #kver
+  if [ ! -f /boot/vmlinuz-$1 ]; then
+    echo "No such kernel"
+    return 1
+  fi
+  echo "Uninstall kernel version $1"
+  sudo rm -f /boot/{System.map,vmlinuz,initrd.img}-$1
+  if [ -d /lib/modules/$1 ]; then
+    sudo rm -rf /lib/modules/$1
+  fi
+}
+
+for i in $*; do
+  uninstall_kernel $i
+done
+sudo update-grub2
