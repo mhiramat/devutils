@@ -68,6 +68,7 @@ do_make() { # target options
 sudo_make() { #target options
   SUDO=sudo 
   do_make $*
+  SUDO= 
 }
 
 do_make_log() { # target options
