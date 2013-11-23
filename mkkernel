@@ -54,11 +54,13 @@ BINDIR=$KBINDIR/`basename $PWD`.$ARCH
 
 [ -d $BINDIR ] || mkdir -p $BINDIR || perr "Failed to make kbindir"
 
-#KREL=`make kernelrelease`
-
 NR_CPUS=`grep processor /proc/cpuinfo | wc -l`
 JOBS=`expr $NR_CPUS \* 2`
 SUDO=
+
+get_kernel_release() {
+  make O=$BINDIR kernelrelease | tail -n 1
+}
 
 do_make() { # target options
   echo make O=$BINDIR -j$JOBS $*
@@ -89,6 +91,52 @@ copy_config() { #file
   fi
 }
 
+store_file() { # path orig_root new_root
+  mkdir -p `dirname $3/$1`
+  cp $2/$1 $3/$1
+}
+
+make_installer() {
+  KREL=`get_kernel_release`
+  tmpdir=`mktemp -d`
+
+  export INSTALL_MOD_PATH=$tmpdir
+  mkdir -p $tmpdir/boot
+  mkdir -p $tmpdir/lib/modules
+  do_make modules_install
+  MOD_PATH=$tmpdir/lib/modules/$KREL
+  if [ ! -d $MOD_PATH ]; then
+    perr "Unexpectedly failed to find $MOD_PATH as a directry"
+  fi
+
+  BUILD_PATH=$MOD_PATH/build
+  if [ ! -L $BUILD_PATH ]; then
+    perr "Unexpectedly failed to find $BUILD_PATH as a symbolic link"
+  fi
+  rm -f $BUILD_PATH
+  mkdir $BUILD_PATH
+  store_file System.map $BINDIR $BUILD_PATH
+  store_file arch/$ARCH/boot/bzImage $BINDIR $BUILD_PATH
+  store_file .config $BINDIR $BUILD_PATH
+  store_file vmlinux $BINDIR $BUILD_PATH
+
+  installer=kernel-installer-${KREL}.sh
+  tempfile=`mktemp`
+  tar cjf $tempfile -C $tmpdir .
+  size=`stat --format=%s $tempfile`
+cat > $installer <<EOF
+#!/bin/sh
+self=\$0
+tail --bytes=$size \$self | tar xvjf - -C /
+installkernel $KREL /lib/modules/$KREL/build/arch/$ARCH/boot/bzImage /lib/modules/$KREL/build/System.map
+exit 0
+EOF
+  cat $tempfile >> $installer
+  chmod a+x $installer
+
+  rm -rf $tmpdir $tempfile
+}
+
 cscope_run() {
   if [ ! -f $BINDIR/cscope.out ]; then
     JOBS=1
@@ -109,6 +157,10 @@ case $TARGET in
  kinstall)
    JOBS=1
    sudo_make modules_install install 
+ ;;
+ installer)
+   JOBS=1
+   make_installer
  ;;
  cscope)
    cscope_run
