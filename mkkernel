@@ -14,11 +14,40 @@ check_gitdir() { # dir
   test -d $1/.git
 }
 
+exist() { # binary
+  which $1 &> /dev/null
+}
+
 check_gitdir $PWD || perr "Failed to find git repository in $PWD"
 
+# Setup arch and cross compile environment
 if [ -z "$ARCH" ]; then
   ARCH=`uname -m`
 fi
+CROSS_COMPILE=
+case $ARCH in
+  i*86)
+    ARCH=x86
+  ;;
+  arm)
+    CROSS_COMPILE=arm-linux-gnueabihf-
+    exist ${CROSS_COMPILE}gcc || CROSS_COMPILE=arm-linux-gnueabi-
+  ;;
+  arm64|aarch64)
+    ARCH=arm64
+    CROSS_COMPILE=aarch64-linux-gnu-
+  ;;
+esac
+echo "Make a $ARCH kernel"
+if [ "$CROSS_COMPILE" ]; then
+  if exist ${CROSS_COMPILE}gcc; then
+    echo "Use ${CROSS_COMPILE}gcc for cross build"
+  else
+    perr "Failed to find cross build tool. Please install ${CROSS_COMPILE}gcc."
+  fi
+fi
+export ARCH
+export CROSS_COMPILE
 
 SRCDIR=$PWD
 BINDIR=$KBINDIR/`basename $PWD`.$ARCH
