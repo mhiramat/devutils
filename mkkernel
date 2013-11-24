@@ -122,12 +122,14 @@ make_installer() {
 
   installer=kernel-installer-${KREL}.sh
   tempfile=`mktemp`
-  tar cjf $tempfile -C $tmpdir .
+  pushd $tmpdir/lib/modules
+  tar cjf $tempfile $KREL
+  popd
   size=`stat --format=%s $tempfile`
 cat > $installer <<EOF
 #!/bin/sh
 self=\$0
-tail --bytes=$size \$self | tar xvjf - -C /
+tail --bytes=$size \$self | tar xvjf - -C /lib/modules
 installkernel $KREL /lib/modules/$KREL/build/arch/$ARCH/boot/bzImage /lib/modules/$KREL/build/System.map
 exit 0
 EOF
