@@ -153,9 +153,31 @@ make_installer() {
 cat > $installer <<EOF
 #!/bin/sh
 self=\$0
-echo "Installing linux-$KREL: will consume $unpacked_size"
-tail --bytes=$size \$self | tar xvjf - -C /lib/modules
-installkernel $KREL /lib/modules/$KREL/build/arch/$ARCH/boot/bzImage /lib/modules/$KREL/build/System.map
+reboot=
+uninstall=
+case "\$1" in
+  -r|--reboot)
+    reboot=1
+  ;;
+  -u|--uninstall)
+    uninstall=1
+  ;;
+esac
+if [ "\$uninstall" ]; then
+  echo "Uninstall linux-$KREL"
+  rm -f /boot/*-$KREL
+  rm -rf /lib/modules/$KREL
+  update-grub2
+else
+  echo "Installing linux-$KREL: will consume $unpacked_size"
+  tail --bytes=$size \$self | tar xvjf - -C /lib/modules
+  installkernel $KREL /lib/modules/$KREL/build/arch/$ARCH/boot/bzImage /lib/modules/$KREL/build/System.map
+fi
+if [ "\$reboot" ]; then
+  echo "The system now reboots"
+  sync; sync; sync
+  reboot
+fi
 exit 0
 EOF
   cat $tempfile >> $installer
