@@ -29,6 +29,8 @@ Install kernel and modules as super user
 * cscope
 Not only build cscope.out but also run cscope afterwards.
 
+* installer
+Make an installer (executable package) for the kernel.
 
 kuninstall
 ----------
