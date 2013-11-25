@@ -25,9 +25,13 @@ if [ -z "$ARCH" ]; then
   ARCH=`uname -m`
 fi
 CROSS_COMPILE=
+GEN_ARCH=
 case $ARCH in
   i*86)
     ARCH=x86
+  ;;
+  x86_64)
+    GEN_ARCH=x86
   ;;
   arm)
     CROSS_COMPILE=arm-linux-gnueabihf-
@@ -38,6 +42,7 @@ case $ARCH in
     CROSS_COMPILE=aarch64-linux-gnu-
   ;;
 esac
+[ -z "$GEN_ARCH" ] && GEN_ARCH=$ARCH
 echo "Make a $ARCH kernel"
 if [ "$CROSS_COMPILE" ]; then
   if exist ${CROSS_COMPILE}gcc; then
@@ -91,9 +96,20 @@ copy_config() { #file
   fi
 }
 
+kconf_enabled() {
+  grep "CONFIG_$1=[ym]" $BINDIR/.config >& /dev/null
+}
+
 store_file() { # path orig_root new_root
   mkdir -p `dirname $3/$1`
-  cp $2/$1 $3/$1
+  echo cp -r $2/$1 $3/$1
+  cp -r $2/$1 $3/$1
+}
+
+install_build_files() { #files
+  for i in $*; do
+    store_file $i $BINDIR $BUILD_PATH
+  done
 }
 
 make_installer() {
@@ -109,26 +125,35 @@ make_installer() {
     perr "Unexpectedly failed to find $MOD_PATH as a directry"
   fi
 
-  BUILD_PATH=$MOD_PATH/build
+  export BUILD_PATH=$MOD_PATH/build
   if [ ! -L $BUILD_PATH ]; then
     perr "Unexpectedly failed to find $BUILD_PATH as a symbolic link"
   fi
   rm -f $BUILD_PATH
   mkdir $BUILD_PATH
-  store_file System.map $BINDIR $BUILD_PATH
-  store_file arch/$ARCH/boot/bzImage $BINDIR $BUILD_PATH
-  store_file .config $BINDIR $BUILD_PATH
-  store_file vmlinux $BINDIR $BUILD_PATH
+  install_build_files System.map arch/$ARCH/boot/bzImage .config
+  kconf_enabled DEBUG_INFO && install_build_files vmlinux
+
+  if kconf_enabled MODULES ; then
+    install_build_files include scripts arch/$GEN_ARCH/include
+    if kconf_enabled MODULE_SIG ; then
+      install_build_files signing_key.priv signing_key.x509
+    fi
+  fi
 
   installer=kernel-installer-${KREL}.sh
   tempfile=`mktemp`
   pushd $tmpdir/lib/modules
+  echo "Packing ..."
   tar cjf $tempfile $KREL
+  echo "Done"
   popd
+  unpacked_size=`du -sh $tempdir/lib/modules | cut -f1 -d" "`
   size=`stat --format=%s $tempfile`
 cat > $installer <<EOF
 #!/bin/sh
 self=\$0
+echo "Installing linux-$KREL: will consume $unpacked_size"
 tail --bytes=$size \$self | tar xvjf - -C /lib/modules
 installkernel $KREL /lib/modules/$KREL/build/arch/$ARCH/boot/bzImage /lib/modules/$KREL/build/System.map
 exit 0
