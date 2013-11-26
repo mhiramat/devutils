@@ -132,6 +132,7 @@ make_installer() {
   rm -f $BUILD_PATH
   mkdir $BUILD_PATH
   install_build_files System.map arch/$ARCH/boot/bzImage .config
+  [ "$ARCH" != "$GEN_ARCH" ] && install_build_files arch/$GEN_ARCH/boot/bzImage
   kconf_enabled DEBUG_INFO && install_build_files vmlinux
 
   if kconf_enabled MODULES ; then
