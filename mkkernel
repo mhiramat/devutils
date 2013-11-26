@@ -136,7 +136,7 @@ make_installer() {
   kconf_enabled DEBUG_INFO && install_build_files vmlinux
 
   if kconf_enabled MODULES ; then
-    install_build_files include scripts arch/$GEN_ARCH/include
+    install_build_files include scripts arch/$GEN_ARCH/include Makefile
     if kconf_enabled MODULE_SIG ; then
       install_build_files signing_key.priv signing_key.x509
     fi
