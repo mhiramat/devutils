@@ -1,5 +1,20 @@
 #!/bin/bash
 
+usage() { #message
+  [ "$1" ] && echo $1
+  echo "Usage:	mkkernel <command> or <target>"
+  echo "Commands:"
+  echo "	help	show this message"
+  echo "	cscope	build a cscope index and invoke cscope"
+  echo "	copyconfig [config]"
+  echo "		copy given configfile and run oldconfig "
+  echo "	alllog	build a kernel image and logging the result"
+  echo "	kinstall"
+  echo "		install modules and kernel image"
+  echo "	installer"
+  echo "		build a self-contained installer"
+}
+
 KBINDIR=~/kbin
 TARGET=$1
 shift 1
@@ -216,6 +231,7 @@ case $TARGET in
    cscope_run
  ;;
  help)
+   usage
  ;;
  *)
    do_make $TARGET
