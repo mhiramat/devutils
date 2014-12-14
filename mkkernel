@@ -1,5 +1,20 @@
 #!/bin/bash
 
+usage() { #message
+  [ "$1" ] && echo $1
+  echo "Usage:	mkkernel <command> or <target>"
+  echo "Commands:"
+  echo "	help	show this message"
+  echo "	cscope	build a cscope index and invoke cscope"
+  echo "	copyconfig [config]"
+  echo "		copy given configfile and run oldconfig "
+  echo "	alllog	build a kernel image and logging the result"
+  echo "	kinstall"
+  echo "		install modules and kernel image"
+  echo "	installer"
+  echo "		build a self-contained installer"
+}
+
 KBINDIR=~/kbin
 TARGET=$1
 shift 1
@@ -112,7 +127,21 @@ install_build_files() { #files
   done
 }
 
+copy_source() { # temproot
+  [ "$1" ] || perr "Fakeroot is not specified for source package"
+  DIR=$1`pwd`
+  echo "Copying the source from `pwd`"
+  mkdir -p $DIR
+  git archive --format tar HEAD | tar xf - -C $DIR
+}
+
 make_installer() {
+  WITH_SRC=
+  case $1 in
+    --source|-s)
+      WITH_SRC="yes"
+    ;;
+  esac
   KREL=`get_kernel_release`
   tmpdir=`mktemp -d`
 
@@ -142,11 +171,13 @@ make_installer() {
     fi
   fi
 
+  [ "$WITH_SRC" ] && copy_source $tmpdir
+
   installer=kernel-installer-${KREL}.sh
   tempfile=`mktemp`
   pushd $tmpdir/lib/modules
   echo "Packing ..."
-  tar cjf $tempfile $KREL
+  tar cJf $tempfile $KREL
   echo "Done"
   popd
   unpacked_size=`du -sh $tempdir/lib/modules | cut -f1 -d" "`
@@ -171,7 +202,7 @@ if [ "\$uninstall" ]; then
   update-grub2
 else
   echo "Installing linux-$KREL: will consume $unpacked_size"
-  tail --bytes=$size \$self | tar xvjf - -C /lib/modules
+  tail --bytes=$size \$self | tar xvJf - -C /lib/modules
   installkernel $KREL /lib/modules/$KREL/build/arch/$ARCH/boot/bzImage /lib/modules/$KREL/build/System.map
 fi
 if [ "\$reboot" ]; then
@@ -210,12 +241,13 @@ case $TARGET in
  ;;
  installer)
    JOBS=1
-   make_installer
+   make_installer $OPTS
  ;;
  cscope)
    cscope_run
  ;;
  help)
+   usage
  ;;
  *)
    do_make $TARGET
