@@ -79,7 +79,7 @@ JOBS=`expr $NR_CPUS \* 2`
 SUDO=
 
 get_kernel_release() {
-  make O=$BINDIR kernelrelease | tail -n 1
+  make -s O=$BINDIR kernelrelease | tail -n 1
 }
 
 do_make() { # target options
@@ -150,12 +150,12 @@ make_installer() {
   mkdir -p $tmpdir/lib/modules
   do_make modules_install
   MOD_PATH=$tmpdir/lib/modules/$KREL
-  if [ ! -d $MOD_PATH ]; then
+  if [ ! -d "$MOD_PATH" ]; then
     perr "Unexpectedly failed to find $MOD_PATH as a directry"
   fi
 
   export BUILD_PATH=$MOD_PATH/build
-  if [ ! -L $BUILD_PATH ]; then
+  if [ ! -L "$BUILD_PATH" ]; then
     perr "Unexpectedly failed to find $BUILD_PATH as a symbolic link"
   fi
   rm -f $BUILD_PATH
