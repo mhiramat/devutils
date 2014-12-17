@@ -60,10 +60,8 @@ if [ "$1" = "--post" ]; then
 fi
 
 TMPDIR=`mktemp -d /tmp/chns-XXXXXXXX`
+trap "rm -rf $TMPDIR" EXIT
 
 # Enter new namespace and exec command
-sudo unshare -pf -m $0 --post $TMPDIR $@
-
-# Cleanup workdir
-sudo rm -rf $TMPDIR
+unshare -pf -m $0 --post $TMPDIR $@
 
