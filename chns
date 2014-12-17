@@ -29,14 +29,12 @@ if [ "$1" = "--post" ]; then
 
   # Prepare overlayed root directory
   mount -t overlay -o upperdir=$UD,lowerdir=/,workdir=$WD overlayfs $RD
-  mkdir $RD/dev/pts
-  touch $RD/dev/console
-  touch $RD/dev/null
 
-  # bind or ro-bind mount for some mountpoints
-  bind /dev/null
-  bind /dev/pts
-  bind /dev/console
+  # Prepare /dev special files
+  mount -t tmpfs tmpfs $RD/dev
+  mkdir $RD/dev/pts; bind /dev/pts
+  touch $RD/dev/console; bind /dev/console
+  touch $RD/dev/null; bind /dev/null
   # TODO: Add other devices here
 
   # Do not bind procfs, since it shows outside pids
