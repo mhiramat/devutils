@@ -1,5 +1,7 @@
 #!/bin/sh
 # chns : Pure shell script change namespace command
+# This requires util-linux newer than 2.24 (unshare "-f"
+# option and mount correctly support /proc/mounts)
 
 bind() { # dir
   mount --bind $1 $RD$1
