@@ -3,6 +3,9 @@
 # This requires util-linux newer than 2.24 (unshare "-f"
 # option and mount correctly support /proc/mounts)
 
+# Exit if any errors
+set -e
+
 bind() { # dir
   mount --bind $1 $RD$1
 }
@@ -11,12 +14,10 @@ robind() { # dir
   mount --bind -o ro $1 $RD$1
 }
 
-if [ "$1" = "--post" ]; then
-  # Post : initialize environment
-  TMPDIR=$2
-  shift 2
-  # Exit if any errors
-  set -e
+# If PID=1, this is in the new world
+if [ $$ -eq 1 ]; then
+  # Ensure the TMPDIR is given
+  test -d "$TMPDIR"
 
   # Make working directories
   RD=$TMPDIR/newroot
@@ -59,9 +60,30 @@ if [ "$1" = "--post" ]; then
   exec chroot mnt/ $@
 fi
 
-TMPDIR=`mktemp -d /tmp/chns-XXXXXXXX`
+usage() { # [error messages]
+  test $# -ne 0 && echo "$*"
+  echo "$0 - Run given command in a temporary namespace"
+  echo "Usage: $0 <command> [argument...]"
+  exit $#
+}
+
+# Parse options
+while [ "$1" ]; do
+case "$1" in
+  --help|-h)
+    usage
+    ;;
+  [!-]*)
+    break
+    ;;
+  *)
+    usage "Parse error: $1 is not supported."
+esac
+done
+
+export TMPDIR=`mktemp -d /tmp/chns-XXXXXXXX`
 trap "rm -rf $TMPDIR" EXIT
 
 # Enter new namespace and exec command
-unshare -pf -m $0 --post $TMPDIR $@
+unshare -pf -m $0 $@
 
