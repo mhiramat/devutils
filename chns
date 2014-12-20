@@ -6,7 +6,7 @@
 # Exit if any errors
 set -e
 
-bind() { # dir
+rwbind() { # dir
   mount --bind $1 $RD$1
 }
 
@@ -33,9 +33,9 @@ if [ $$ -eq 1 ]; then
 
   # Prepare /dev special files
   mount -t tmpfs tmpfs $RD/dev
-  mkdir $RD/dev/pts; bind /dev/pts
-  touch $RD/dev/console; bind /dev/console
-  touch $RD/dev/null; bind /dev/null
+  mkdir $RD/dev/pts; rwbind /dev/pts
+  touch $RD/dev/console; rwbind /dev/console
+  touch $RD/dev/null; rwbind /dev/null
   # TODO: Add other devices here
 
   # Do not bind procfs, since it shows outside pids
