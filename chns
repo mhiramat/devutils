@@ -36,6 +36,7 @@ if [ $$ -eq 1 ]; then
   mkdir $RD/dev/pts; rwbind /dev/pts
   touch $RD/dev/console; rwbind /dev/console
   touch $RD/dev/null; rwbind /dev/null
+  touch $RD/dev/zero; robind /dev/zero
   # TODO: Add other devices here
 
   # Do not bind procfs, since it shows outside pids
