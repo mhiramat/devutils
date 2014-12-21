@@ -28,13 +28,19 @@ if [ $$ -eq 1 ]; then
   # Make private mount namespace
   mount --make-rprivate /
 
+  # Do not update /etc/mtab since the mount is private
+  export LIBMOUNT_MTAB=/proc/mounts
+
   # Prepare overlayed root directory
-  if grep overlayfs /proc/filesystems > /dev/null 2>&1 ;then
+  # This is for upstreamed overlayfs
+  mount -t overlay -o upperdir=$UD,lowerdir=/,workdir=$WD overlayfs $RD 2>/dev/null || \
     # Workaround for ubuntu 14.10 (out-of-tree overlayfs)
     mount -t overlayfs -o upperdir=$UD,lowerdir=/ overlayfs $RD
-  else
-    # This is for upstreamed overlayfs
-    mount -t overlay -o upperdir=$UD,lowerdir=/,workdir=$WD overlayfs $RD
+
+  # Hide /etc/mtab in this namespace
+  if [ ! -L $RD/etc/mtab ]; then
+    rm $RD/etc/mtab
+    ln -s /proc/mounts $RD/etc/mtab
   fi
 
   # Prepare /dev special files
