@@ -19,11 +19,11 @@ if [ $$ -eq 1 ]; then
   # Ensure the TMPDIR is given
   test -d "$TMPDIR"
 
-  # Make working directories
-  RD=$TMPDIR/newroot
+  # Working sub-directories
+  RD=$TMPDIR/root
   UD=$TMPDIR/storage
-  WD=$TMPDIR/temp
-  mkdir $RD $UD $WD
+  WD=$TMPDIR/work
+  mkdir -p $RD $UD $WD
 
   # Make private mount namespace
   mount --make-rprivate /
@@ -49,7 +49,7 @@ if [ $$ -eq 1 ]; then
 
   # To unmount all unused mountpoints, use pivot_root to change root
   cd $RD
-  mkdir .orig
+  mkdir -p .orig
   pivot_root . .orig
   umount -R .orig/ >/dev/null 2>&1 || echo -n
 
@@ -64,17 +64,33 @@ fi
 usage() { # [error messages]
   test $# -ne 0 && echo "$*"
   echo "$0 - Run given command in a temporary namespace"
-  echo "Usage: $0 <command> [argument...]"
+  echo "Usage: $0 [options] <command> [argument...]"
+  echo " options:"
+  echo "    -h or --help        Show this help"
+  echo "    -k or --keep        Keep the temporary directory"
+  echo "    -t or --temp <DIR>  Set DIR for temporary directory (imply -k)"
   exit $#
 }
 
+KEEPDIR=0
+TMPDIR=
 # Parse options
 while [ "$1" ]; do
 case "$1" in
-  --help|-h)
+  --keep|-k) # Keep the temporary directory
+    KEEPDIR=1
+    shift 1
+    ;;
+  --tempdir|-t) # Give a temporary directory (imply -k)
+    KEEPDIR=1
+    export TMPDIR=$2
+    test -d "$TMPDIR" || usage "Error: $2 is not a directory"
+    shift 2
+    ;;
+  --help|-h) # Help Message
     usage
     ;;
-  [!-]*)
+  [!-]*) # User given command
     break
     ;;
   *)
@@ -82,8 +98,14 @@ case "$1" in
 esac
 done
 
-export TMPDIR=`mktemp -d /tmp/chns-XXXXXXXX`
-trap "rm -rf $TMPDIR" EXIT
+if [ -z "$TMPDIR" ]; then
+  export TMPDIR=`mktemp -d /tmp/chns-XXXXXXXX`
+fi
+if [ $KEEPDIR -eq 0 ]; then
+  trap "rm -rf $TMPDIR" EXIT
+else
+  trap "echo Keep $TMPDIR" EXIT
+fi
 
 # Enter new namespace and exec command
 unshare -iupf -m $0 $@
