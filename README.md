@@ -6,7 +6,7 @@ Utility scripts for daily life
 mkkernel
 --------
 
-### Syntax 
+### Usage
     mkkernel <target> [build-options]
 
 mkkernel is for building linux kernel under different build
@@ -35,7 +35,7 @@ Make an installer (executable package) for the kernel.
 kuninstall
 ----------
 
-### Syntax
+### Usage
      kuninstall [target-kernel-version(s)]
 
 kuninstall helps you to uninstall unneeded kernel and
@@ -48,3 +48,19 @@ versions are installed.
 Note that the kuninstall doesn't recognize the distro
 kernel. So you may need to take care of it.
 
+chns
+--------
+
+### Usage
+    chns [options] [command]
+
+chns runs given command in a temporary namespace (currently
+pid and mount). This is just a simple hack to know how the
+linux container works.
+
+Note that this requires overlayfs support in the kernel.
+And also, perhaps this doesn't work if the command is not
+on the root partition :-/
+
+Anyway, this kind of rightweight-namespace sandbox is
+what I need for daily use :-)
