@@ -18,6 +18,7 @@ robind() { # dir
 if [ $$ -eq 1 ]; then
   # Ensure the TMPDIR is given
   test -d "$TMPDIR"
+  test -d "$ROOTDIR" || ROOTDIR=/
 
   # Working sub-directories
   RD=$TMPDIR/root
@@ -33,9 +34,9 @@ if [ $$ -eq 1 ]; then
 
   # Prepare overlayed root directory
   # This is for upstreamed overlayfs
-  mount -t overlay -o upperdir=$UD,lowerdir=/,workdir=$WD overlayfs $RD 2>/dev/null || \
+  mount -t overlay -o upperdir=$UD,lowerdir=$ROOTDIR,workdir=$WD overlayfs $RD 2>/dev/null || \
     # Workaround for ubuntu 14.10 (out-of-tree overlayfs)
-    mount -t overlayfs -o upperdir=$UD,lowerdir=/ overlayfs $RD
+    mount -t overlayfs -o upperdir=$UD,lowerdir=$ROOTDIR overlayfs $RD
 
   # Hide /etc/mtab in this namespace
   if [ ! -L $RD/etc/mtab ]; then
@@ -80,12 +81,14 @@ usage() { # [error messages]
   echo " options:"
   echo "    -h or --help        Show this help"
   echo "    -k or --keep        Keep the temporary directory"
-  echo "    -t or --temp <DIR>  Set DIR for temporary directory (imply -k)"
+  echo "    -t or --tempdir <DIR>  Set DIR for temporary directory (imply -k)"
+  echo "    -r or --rootdir <DIR>  Set DIR for original root directory"
   exit $#
 }
 
 KEEPDIR=0
 TMPDIR=
+export ROOTDIR=/
 # Parse options
 while [ "$1" ]; do
 case "$1" in
@@ -97,6 +100,11 @@ case "$1" in
     KEEPDIR=1
     export TMPDIR=$2
     test -d "$TMPDIR" || usage "Error: $2 is not a directory"
+    shift 2
+    ;;
+  --rootdir|-r) # Give a rootdir instead of /
+    export ROOTDIR=$2
+    test -d "$ROOTDIR" || usage "Error: $2 is not a directory"
     shift 2
     ;;
   --help|-h) # Help Message
