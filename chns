@@ -29,7 +29,13 @@ if [ $$ -eq 1 ]; then
   mount --make-rprivate /
 
   # Prepare overlayed root directory
-  mount -t overlay -o upperdir=$UD,lowerdir=/,workdir=$WD overlayfs $RD
+  if grep overlayfs /proc/filesystems > /dev/null 2>&1 ;then
+    # Workaround for ubuntu 14.10 (out-of-tree overlayfs)
+    mount -t overlayfs -o upperdir=$UD,lowerdir=/ overlayfs $RD
+  else
+    # This is for upstreamed overlayfs
+    mount -t overlay -o upperdir=$UD,lowerdir=/,workdir=$WD overlayfs $RD
+  fi
 
   # Prepare /dev special files
   mount -t tmpfs tmpfs $RD/dev
