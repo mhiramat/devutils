@@ -1,40 +1,48 @@
 #!/bin/sh
 # chns : Pure shell script change namespace command
+# This requires util-linux newer than 2.24 (unshare "-f"
+# option and mount correctly support /proc/mounts)
 
-function bind() { # dir
+# Exit if any errors
+set -e
+
+rwbind() { # dir
   mount --bind $1 $RD$1
 }
 
-function robind() { # dir
+robind() { # dir
   mount --bind -o ro $1 $RD$1
 }
 
-if [ "$1" = "--post" ]; then
-  # Post : initialize environment
-  TMPDIR=$2
-  shift 2
-  # Exit if any errors
-  set -e
+# If PID=1, this is in the new world
+if [ $$ -eq 1 ]; then
+  # Ensure the TMPDIR is given
+  test -d "$TMPDIR"
 
-  # Make working directories
-  RD=$TMPDIR/newroot
+  # Working sub-directories
+  RD=$TMPDIR/root
   UD=$TMPDIR/storage
-  WD=$TMPDIR/temp
-  mkdir $RD $UD $WD
+  WD=$TMPDIR/work
+  mkdir -p $RD $UD $WD
 
   # Make private mount namespace
   mount --make-rprivate /
 
   # Prepare overlayed root directory
-  mount -t overlay -o upperdir=$UD,lowerdir=/,workdir=$WD overlayfs $RD
-  mkdir $RD/dev/pts
-  touch $RD/dev/console
-  touch $RD/dev/null
+  if grep overlayfs /proc/filesystems > /dev/null 2>&1 ;then
+    # Workaround for ubuntu 14.10 (out-of-tree overlayfs)
+    mount -t overlayfs -o upperdir=$UD,lowerdir=/ overlayfs $RD
+  else
+    # This is for upstreamed overlayfs
+    mount -t overlay -o upperdir=$UD,lowerdir=/,workdir=$WD overlayfs $RD
+  fi
 
-  # bind or ro-bind mount for some mountpoints
-  bind /dev/null
-  bind /dev/pts
-  bind /dev/console
+  # Prepare /dev special files
+  mount -t tmpfs tmpfs $RD/dev
+  mkdir $RD/dev/pts; rwbind /dev/pts
+  touch $RD/dev/console; rwbind /dev/console
+  touch $RD/dev/null; rwbind /dev/null
+  touch $RD/dev/zero; robind /dev/zero
   # TODO: Add other devices here
 
   # Do not bind procfs, since it shows outside pids
@@ -47,9 +55,9 @@ if [ "$1" = "--post" ]; then
 
   # To unmount all unused mountpoints, use pivot_root to change root
   cd $RD
-  mkdir .orig
+  mkdir -p .orig
   pivot_root . .orig
-  umount -R .orig/ &>/dev/null || echo -n
+  umount -R .orig/ >/dev/null 2>&1 || echo -n
 
   # The original root can not unmount because it referred by overlayfs.
   # So, we pivot to the root again, and chroot to overlay directory.
@@ -59,11 +67,52 @@ if [ "$1" = "--post" ]; then
   exec chroot mnt/ $@
 fi
 
-TMPDIR=`mktemp -d /tmp/chns-XXXXXXXX`
+usage() { # [error messages]
+  test $# -ne 0 && echo "$*"
+  echo "$0 - Run given command in a temporary namespace"
+  echo "Usage: $0 [options] <command> [argument...]"
+  echo " options:"
+  echo "    -h or --help        Show this help"
+  echo "    -k or --keep        Keep the temporary directory"
+  echo "    -t or --temp <DIR>  Set DIR for temporary directory (imply -k)"
+  exit $#
+}
+
+KEEPDIR=0
+TMPDIR=
+# Parse options
+while [ "$1" ]; do
+case "$1" in
+  --keep|-k) # Keep the temporary directory
+    KEEPDIR=1
+    shift 1
+    ;;
+  --tempdir|-t) # Give a temporary directory (imply -k)
+    KEEPDIR=1
+    export TMPDIR=$2
+    test -d "$TMPDIR" || usage "Error: $2 is not a directory"
+    shift 2
+    ;;
+  --help|-h) # Help Message
+    usage
+    ;;
+  [!-]*) # User given command
+    break
+    ;;
+  *)
+    usage "Parse error: $1 is not supported."
+esac
+done
+
+if [ -z "$TMPDIR" ]; then
+  export TMPDIR=`mktemp -d /tmp/chns-XXXXXXXX`
+fi
+if [ $KEEPDIR -eq 0 ]; then
+  trap "rm -rf $TMPDIR" EXIT
+else
+  trap "echo Keep $TMPDIR" EXIT
+fi
 
 # Enter new namespace and exec command
-sudo unshare -pf -m $0 --post $TMPDIR $@
-
-# Cleanup workdir
-sudo rm -rf $TMPDIR
+unshare -iupf -m $0 $@
 
