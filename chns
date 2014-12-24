@@ -61,6 +61,14 @@ if [ $$ -eq 1 ]; then
   robind /proc/bus
   robind /sys
 
+  if [ "$RWBIND" ]; then
+    for i in $RWBIND; do
+      test -d $i && mkdir -p $i
+      test -f $i && touch $i
+      rwbind $i
+    done
+  fi
+
   # To unmount all unused mountpoints, use pivot_root to change root
   cd $RD
   mkdir -p .orig
@@ -84,6 +92,7 @@ usage() { # [error messages]
   echo "    -k or --keep        Keep the temporary directory"
   echo "    -t or --tempdir <DIR>  Set DIR for temporary directory (imply -k)"
   echo "    -r or --rootdir <DIR>  Set DIR for original root directory"
+  echo "    -X or --X11         Export local X11 unix socket"
   exit $#
 }
 
@@ -107,6 +116,11 @@ case "$1" in
     export ROOTDIR=$2
     test -d "$ROOTDIR" || usage "Error: $2 is not a directory"
     shift 2
+    ;;
+  --X11|-X) # Export X11 connection
+    [ -z "$DISPLAY" ] && usage "Error: \$DISPLAY is empty"
+    export RWBIND="/tmp/.X11-unix"
+    shift 1
     ;;
   --help|-h) # Help Message
     usage
