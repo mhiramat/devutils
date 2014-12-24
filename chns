@@ -50,6 +50,7 @@ if [ $$ -eq 1 ]; then
   touch $RD/dev/console; rwbind /dev/console
   touch $RD/dev/null; rwbind /dev/null
   touch $RD/dev/zero; robind /dev/zero
+  mkdir $RD/dev/mqueue; rwbind /dev/mqueue
   # TODO: Add other devices here
 
   # Do not bind procfs, since it shows outside pids
@@ -128,5 +129,5 @@ else
 fi
 
 # Enter new namespace and exec command
-unshare -iupf -m $0 $@
+unshare -iumpf $0 $@
 
