@@ -148,14 +148,14 @@ if [ $KEEPDIR -eq 0 ]; then
 else
   TRAPCMD="echo Keep $TMPDIR"
 fi
-trap $TRAPCMD EXIT
+trap "$TRAPCMD" EXIT
 
 # Setup Network Namespace
 if [ $NETNS -ne 0 ];then
   NSNAME="chns$$"
   ip netns add $NSNAME
   TRAPCMD="$TRAPCMD;ip netns del $NSNAME"
-  trap $TRAPCMD EXIT
+  trap "$TRAPCMD" EXIT
   export NETNSIF=vchns$$
   ip link add name $NETNSIF type veth peer name veth$$
   ip link set $NETNSIF netns $NSNAME
