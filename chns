@@ -93,11 +93,13 @@ usage() { # [error messages]
   echo "    -t or --tempdir <DIR>  Set DIR for temporary directory (imply -k)"
   echo "    -r or --rootdir <DIR>  Set DIR for original root directory"
   echo "    -X or --X11         Export local X11 unix socket"
+  echo "    -n or --net         Use network namespace"
   exit $#
 }
 
 KEEPDIR=0
 TMPDIR=
+NETNS=0
 export ROOTDIR=/
 # Parse options
 while [ "$1" ]; do
@@ -122,6 +124,10 @@ case "$1" in
     export RWBIND="/tmp/.X11-unix"
     shift 1
     ;;
+  --net|-n) # Use NetNS
+    export NETNS=1
+    shift 1
+    ;;
   --help|-h) # Help Message
     usage
     ;;
@@ -133,15 +139,31 @@ case "$1" in
 esac
 done
 
+# Setup temporary directory
 if [ -z "$TMPDIR" ]; then
-  export TMPDIR=`mktemp -d /tmp/chns-XXXXXXXX`
+  export TMPDIR=`mktemp -d /tmp/chns$$-XXXX`
 fi
 if [ $KEEPDIR -eq 0 ]; then
-  trap "rm -rf $TMPDIR" EXIT
+  TRAPCMD="rm -rf $TMPDIR"
 else
-  trap "echo Keep $TMPDIR" EXIT
+  TRAPCMD="echo Keep $TMPDIR"
+fi
+trap $TRAPCMD EXIT
+
+# Setup Network Namespace
+if [ $NETNS -ne 0 ];then
+  NSNAME="chns$$"
+  ip netns add $NSNAME
+  TRAPCMD="$TRAPCMD;ip netns del $NSNAME"
+  trap $TRAPCMD EXIT
+  export NETNSIF=vchns$$
+  ip link add name $NETNSIF type veth peer name veth$$
+  ip link set $NETNSIF netns $NSNAME
+  IPNETNS="ip netns exec $NSNAME "
+else
+  IPNETNS=
 fi
 
 # Enter new namespace and exec command
-unshare -iumpf $0 $@
+$IPNETNS unshare -iumpf $0 $@
 
