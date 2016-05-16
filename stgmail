@@ -1,0 +1,51 @@
+#!/bin/sh
+
+git_top_dir() {
+  if [ -d .git ]; then
+    pwd
+  elif [ -d .. ]; then
+    (cd ../; git_top_dir)
+  fi
+}
+
+BRANCH=`stg branch`
+TOPDIR=`git_top_dir`
+PATCHDIR=$TOPDIR/patches-$BRANCH
+
+[ ! -d $PATCHDIR ] && stg export -b $BRANCH
+
+PATCH=-a
+[ -f $PATCHDIR/config ] && . $PATCHDIR/config
+
+REALPOST=
+EDITFILE=
+[ -z "$EDITOR" ] && EDITOR=vi
+
+if [ "$1" ]; then
+case "$1" in
+	realpost)
+		REALPOST=yes
+		;;
+	edit)
+		EDITFILE=config
+		[ "$2" ] && EDITFILE="$2"
+		$EDITOR $PATCHDIR/$EDITFILE
+		exit 0
+		;;
+esac
+fi
+
+OPT=
+[ "$TO" ] && OPT="$OPT --to=\"$TO\""
+[ "$CC" ] && OPT="$OPT --cc=\"$CC\""
+[ "$VERSION" ] && OPT="$OPT --version=\"$VERSION\""
+[ "$PREFIX" ] && OPT="$OPT --prefix=\"$PREFIX\""
+[ "$COVER" ] && OPT="$OPT --cover=$PATCHDIR/$COVER"
+[ ! -z "$REPLY" ] && OPT="$OPT --in-reply-to=\"$REPLY\""
+
+if [ "$REALPOST" ]; then
+  eval stg mail --git $OPT $PATCH | tee -a $PATCHDIR/sent.log
+else
+  eval stg mail --mbox $OPT $PATCH > $PATCHDIR/mbox
+  less $PATCHDIR/mbox
+fi
