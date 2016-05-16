@@ -177,7 +177,7 @@ make_installer() {
   tempfile=`mktemp`
   pushd $tmpdir/lib/modules
   echo "Packing ..."
-  tar cJf $tempfile $KREL
+  tar czf $tempfile $KREL
   echo "Done"
   popd
   unpacked_size=`du -sh $tempdir/lib/modules | cut -f1 -d" "`
@@ -202,7 +202,7 @@ if [ "\$uninstall" ]; then
   update-grub2
 else
   echo "Installing linux-$KREL: will consume $unpacked_size"
-  tail --bytes=$size \$self | tar xvJf - -C /lib/modules
+  tail --bytes=$size \$self | tar xvzf - -C /lib/modules
   installkernel $KREL /lib/modules/$KREL/build/arch/$ARCH/boot/bzImage /lib/modules/$KREL/build/System.map
 fi
 if [ "\$reboot" ]; then
