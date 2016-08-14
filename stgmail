@@ -10,9 +10,11 @@ git_top_dir() {
 
 BRANCH=`stg branch`
 TOPDIR=`git_top_dir`
-PATCHDIR=$TOPDIR/patches-$BRANCH
+CHECKEROPT=
+CHECKER=$TOPDIR/scripts/checkpatch.pl
 
-[ ! -d $PATCHDIR ] && stg export -b $BRANCH
+PATCHDIR=$TOPDIR/patches-$BRANCH
+stg export -b $BRANCH
 
 PATCH=-a
 [ -f $PATCHDIR/config ] && . $PATCHDIR/config
@@ -25,6 +27,9 @@ if [ "$1" ]; then
 case "$1" in
 	realpost)
 		REALPOST=yes
+		;;
+	nocheck)
+		CHECKER=""
 		;;
 	edit)
 		EDITFILE=config
@@ -42,6 +47,13 @@ OPT=
 [ "$PREFIX" ] && OPT="$OPT --prefix=\"$PREFIX\""
 [ "$COVER" ] && OPT="$OPT --cover=$PATCHDIR/$COVER"
 [ ! -z "$REPLY" ] && OPT="$OPT --in-reply-to=\"$REPLY\""
+
+if [ -x "$CHECKER" ]; then
+	(cd $PATCHDIR; grep -v "^#" series | xargs -n 1 $CHECKER $CHECKEROPT)
+else
+	echo "Warning: No executable checker found: $CHECKER"
+	echo "Skip patch style checking"
+fi
 
 if [ "$REALPOST" ]; then
   eval stg mail --git $OPT $PATCH | tee -a $PATCHDIR/sent.log
