@@ -199,7 +199,11 @@ if [ "\$uninstall" ]; then
   echo "Uninstall linux-$KREL"
   rm -f /boot/*-$KREL
   rm -rf /lib/modules/$KREL
-  update-grub2
+  if which update-grub2 ; then
+    update-grub2
+  else
+    grub2-mkconfig > /boot/grub2/grub.cfg
+  fi
 else
   echo "Installing linux-$KREL: will consume $unpacked_size"
   tail --bytes=$size \$self | tar xvzf - -C /lib/modules
